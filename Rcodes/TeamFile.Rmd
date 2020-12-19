@@ -2,7 +2,7 @@
 
 ## Reading CSV
 ```{r}
-url = "https://raw.githubusercontent.com/abhishek-gupta-nyu/themoviedb/master/final/final.csv"
+url = "https://github.com/ajithgh/Predicting-Movie-success/raw/main/rv_bud.csv"
 df_movies<- read.csv(url, header = TRUE, stringsAsFactors = FALSE)
 ```
 
@@ -74,6 +74,17 @@ df_movies$moreThan1Keyword<-ifelse(str_detect(df_movies$keywords,",([a-zA-z])",)
 df_movies$moreThan1Director<-ifelse(str_detect(df_movies$director,",([a-zA-z])",) ,1,0)
 df_movies$moreThanSpokenLanguage<-ifelse(str_detect(df_movies$spoken_languages,",([a-zA-z])",) ,1,0)
 view(df_movies)
+```
+
+## Adding additional features
+```{r}
+
+df_movies$profit_factor = (df_movies$revenue - df_movies$budget) / df_movies$budget
+
+df_movies$cast_crew_ratio = df_movies$cast_size / df_movies$crew_size
+
+df_movies$target = ifelse(df_movies$profit_factor < 1, 0, ifelse(df_movies$profit_factor >= 1 & df_movies$profit_factor < 2, 1, 2))
+
 ```
 
 ## #Removing everything adter the comma for the above columns excep "Spoken Languages"
