@@ -34,6 +34,7 @@ library(jsonlite)
 #install.packages("naniar")
 library(heatmaply)
 library(naniar)
+library(hextri)
 ```
 
 ## Checking Raw Data quality
@@ -85,6 +86,19 @@ df_movies$cast_crew_ratio = df_movies$cast_size / df_movies$crew_size
 
 df_movies$target = ifelse(df_movies$profit_factor < 1, 0, ifelse(df_movies$profit_factor >= 1 & df_movies$profit_factor < 2, 1, 2))
 
+table(df_movies$target)
+
+```
+
+## Heatmap 
+```{r}
+sum(is.na(df_movies))
+colnames(is.na(df_movies))
+
+with(na.omit(df_movies), 
+  hextri(revenue, vote_average, class=target, colours=c("skyblue","grey60","goldenrod"), style="size",
+            xlab="Revenue", ylab="Vote Average")
+)
 ```
 
 ## #Removing everything adter the comma for the above columns excep "Spoken Languages"
