@@ -5,11 +5,11 @@
 
 # 1. Reading CSV 
 rawmovies = "https://raw.githubusercontent.com/abhishek-gupta-nyu/themoviedb/master/final/final.csv"
-movies = read.csv(df_rawmovies, header=TRUE,stringsAsFactors= FALSE)
+movies = read.csv(rawmovies, header=TRUE,stringsAsFactors= FALSE)
 head(movies)
 summary(movies)
-str(df_movies)
-dim(df_movies)
+str(movies)
+dim(movies)
 
 # 1. Setting working directory : In case reading file locally
 #setwd("C:/Users/palak/Dropbox/NYU courses/Fall 2020/Business analytics/BA Project _Final")
@@ -119,7 +119,7 @@ movies %>% group_by(
 # 1. Movie names vs. genre ( to know the movie by type) { need to clean genre column}
 # table(df_movies$genre)
 # unique(df_movies$genre)
-ggplot(data=df_movies, aes(x=genre)) + 
+ggplot(data=movies, aes(x=genre)) + 
   geom_bar(alpha = 0.6, fill = "blue") + theme_bw() +
   theme(axis.title.x = element_text(face="bold", vjust=-0.5, size=14),
         axis.text.x  = element_text(size=14),
@@ -128,7 +128,7 @@ ggplot(data=df_movies, aes(x=genre)) +
   labs(x= "Genre", y = "Number of Movies")
 
 # 2. Plotting revenue distribution of the movies
-ggplot(df_movies, aes(x=revenue))+ geom_histogram (alpha = 0.6, fill = "blue") + theme_bw() +
+ggplot(movies, aes(x=revenue))+ geom_histogram (alpha = 0.6, fill = "blue") + theme_bw() +
   theme(axis.title.x = element_text(face="bold", vjust=-0.5, size=14),
         axis.text.x  = element_text(size=12),
         axis.title.y = element_text(face="bold", vjust=1, size=14),
@@ -137,8 +137,8 @@ ggplot(df_movies, aes(x=revenue))+ geom_histogram (alpha = 0.6, fill = "blue") +
 
 # 3. Plotting Budget distribution of the movies
 
-df_movies$budget = as.numeric(df_movies$budget) # converting budget from factor to numeric data
-ggplot(df_movies, aes(x=budget))+ geom_histogram (alpha = 0.6, fill = "blue") + theme_bw() +
+movies$budget = as.numeric(movies$budget) # converting budget from factor to numeric data
+ggplot(movies, aes(x=budget))+ geom_histogram (alpha = 0.6, fill = "blue") + theme_bw() +
   theme(axis.title.x = element_text(face="bold", vjust=-0.5, size=14),
         axis.text.x  = element_text(size=12),
         axis.title.y = element_text(face="bold", vjust=1, size=14),
@@ -147,7 +147,7 @@ ggplot(df_movies, aes(x=budget))+ geom_histogram (alpha = 0.6, fill = "blue") + 
 
 # 4. 
 
-genre_df <- df_movies%>%
+genre_df <- movies%>%
   select(id, title, runtime, original_language,genre)
 
 genre_df %>% 
@@ -158,7 +158,7 @@ genre_df %>%
 
 # 5. 
 
-top10 <- head(df_movies[order(df_movies$revenue, decreasing = TRUE), c("original_title", "revenue")], n = 10)
+top10 <- head(movies[order(movies$revenue, decreasing = TRUE), c("original_title", "revenue")], n = 10)
 top10
 
 top10$original_title <- reorder(top10$original_title, as.numeric(top10$revenue))
@@ -173,7 +173,7 @@ ggplot(top10, aes(original_title, revenue)) +
 
 
 
-top10 <- head(df_movies[order(df_movies$vote_average, decreasing = TRUE), c("original_title", "vote_average")], n = 10)
+top10 <- head(movies[order(movies$vote_average, decreasing = TRUE), c("original_title", "vote_average")], n = 10)
 top10
 
 top10$original_title <- reorder(top10$original_title, as.numeric(top10$vote_average))
