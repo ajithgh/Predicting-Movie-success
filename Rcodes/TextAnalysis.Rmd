@@ -1,0 +1,623 @@
+---
+title: "Text Analytics"
+author: "Gabriela Caballero"
+date: "12/21/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+getwd()
+moviesClassified<- read.csv("Imputed file SunNight.csv", header = TRUE, stringsAsFactors = TRUE)
+textAnalysis<-read.csv("Text Analytics Data_Reviews_overviewSucc_keywords_Id.csv")
+
+textClassifed<-merge(moviesClassified,textAnalysis, by="id")
+successfulMovies<-subset(textClassifed,textClassifed$Target==1)
+unsuccessfulMovies<-subset(textClassifed,textClassifed$Target==0)
+
+length(successfulMovies$id)
+length(unsuccessfulMovies$id)
+
+```
+Using Overview as corpus
+```{r}
+overviewSucc<-successfulMovies$overview
+```
+
+Substituting punctiation
+```{r}
+overviewSucc <- gsub("'", "", overviewSucc) # remove apostrophes
+overviewSucc <- gsub("[[:punct:]]", " ", overviewSucc)  # replace punctuation with space
+overviewSucc <- gsub("[[:cntrl:]]", " ", overviewSucc)  # replace control characters with space
+overviewSucc <- gsub("^[[:space:]]+", "", overviewSucc) # remove whitespace at beginning of documents
+overviewSucc<- gsub("[[:space:]]+$", "", overviewSucc) # remove whitespace at end of documents
+overviewSucc<- gsub("[^a-zA-Z -]", " ", overviewSucc) # allows only letters
+overview<- tolower(overviewSucc)  # force to lowercase
+```
+
+Preprocessing
+```{r}
+library(quanteda)
+library(janeaustenr)
+library(dplyr)
+library(stringr)
+overviewSuccCorpus<- corpus(overviewSucc)
+#explore the corpus
+summary(overviewSuccCorpus)  #summary of corpus
+
+
+#create document feature matrix from clean corpus + stem
+dfm.simple<- dfm(overviewSuccCorpus, 
+                 remove = stopwords("english"), 
+                 verbose=TRUE, 
+                 stem=FALSE)
+
+topfeatures(dfm.simple, n=50)
+
+# create a custom dictonary
+swlist = c("t", "s", "u","one", "two", "also", "take", "go", "like","for", 
+           "us", "can", "may", "now", "year", "tri")
+
+dfm<- dfm(overviewSuccCorpus, 
+          remove = c(swlist,stopwords("english")), 
+          verbose=TRUE, 
+          stem=FALSE)
+
+topfeatures(dfm, n=50)
+
+dfm.stem<- dfm(overviewSuccCorpus, 
+               remove = c(swlist,stopwords("english")), 
+               verbose=TRUE, 
+               stem=TRUE)
+#Analysis of top features
+topfeatures(dfm.stem, n=50)
+
+
+```
+
+```{r}
+#Sentiment Analysis
+library(tidytext)
+library(textdata)
+library(tidyr)
+library(tidyft)
+
+BingSentiments= get_sentiments("nrc")
+BingSentiments
+BingNegativeSentiments<-subset(BingSentiments, BingSentiments$sentiment=="negative")
+BingPositiveSentiments<-subset(BingSentiments, BingSentiments$sentiment=="positive")
+
+BingNegativeSentiments
+BingPositiveSentiments
+
+
+
+
+mydict <- dictionary(list(negative=BingNegativeSentiments$word,
+                          postive =BingPositiveSentiments$word ))
+
+dfm.overviewSucc.sentiment <- dfm(overviewSuccCorpus, 
+                     remove = c(swlist,stopwords("english")), 
+                     verbose=TRUE, 
+                     dictionary = mydict,
+                     stem=FALSE)
+topfeatures(dfm.overviewSucc.sentiment)
+
+dfm.sentiment
+
+#Visualization
+
+library(wordcloud)
+set.seed(142)   #keeps cloud' shape fixed
+dark2 <- brewer.pal(8, "Set1")   
+freq<-topfeatures(dfm.stem, n=500)
+
+wordcloud(names(freq), 
+          freq, max.words=200, 
+          scale=c(3, .1), 
+          colors=brewer.pal(8, "Set1"))
+
+#Words in context
+kwic(overviewSuccCorpus, "mysterious", 2)
+kwic(overviewSuccCorpus , "death", window = 3)
+kwic(overviewSuccCorpus, "love", 4)
+kwic(overviewSuccCorpus , "young", window = 3)
+kwic(overviewSuccCorpus , "family", window = 3)
+
+```
+Analysis successful keywords
+```{r}
+kewywordsSucc<-successfulMovies$keywords.y
+
+#Substituting punctiation
+
+kewywordsSucc <- gsub("'", "", kewywordsSucc) # remove apostrophes
+kewywordsSucc <- gsub("[[:punct:]]", " ", kewywordsSucc)  # replace punctuation with space
+kewywordsSucc <- gsub("[[:cntrl:]]", " ", kewywordsSucc)  # replace control characters with space
+kewywordsSucc <- gsub("^[[:space:]]+", "", kewywordsSucc) # remove whitespace at beginning of documents
+kewywordsSucc<- gsub("[[:space:]]+$", "", kewywordsSucc) # remove whitespace at end of documents
+kewywordsSucc<- gsub("[^a-zA-Z -]", " ", kewywordsSucc) # allows only letters
+kewywordsSucc<- tolower(kewywordsSucc)  # force to lowercase
+
+#Preprocessing
+library(quanteda)
+library(janeaustenr)
+library(dplyr)
+library(stringr)
+kewywordsSuccCorpus<- corpus(kewywordsSucc)
+#explore the corpus
+summary(kewywordsSuccCorpus)  #summary of corpus
+
+
+#create document feature matrix from clean corpus + stem
+dfm.simple.keywodsSucc<- dfm(kewywordsSuccCorpus, 
+                 remove = stopwords("english"), 
+                 verbose=TRUE, 
+                 stem=FALSE)
+
+topfeatures(dfm.simple.keywodsSucc, n=50)
+
+# create a custom dictonary
+swlist = c("t", "s", "u","one", "two", "also", "take", "go", "like","for", 
+           "us", "can", "may", "now", "year")
+
+dfmKeywordSucc<- dfm(kewywordsSuccCorpus, 
+          remove = c(swlist,stopwords("english")), 
+          verbose=TRUE, 
+          stem=FALSE)
+
+topfeatures(dfm, n=50)
+
+kwic(kewywordsSuccCorpus, "friends", 2)
+kwic(kewywordsSuccCorpus , "world", window = 3)
+kwic(kewywordsSuccCorpus, "life", 4)
+kwic(kewywordsSuccCorpus , "new", window = 3)
+kwic(kewywordsSuccCorpus , "family", window = 3)
+
+dfm.stem.keywordSucc<- dfm(kewywordsSuccCorpus, 
+               remove = c(swlist,stopwords("english")), 
+               verbose=TRUE, 
+               stem=TRUE)
+#Analysis of top features
+topfeatures(dfm.stem, n=50)
+
+
+#Sentiment Analysis
+library(tidytext)
+library(textdata)
+library(tidyr)
+library(tidyft)
+
+
+negative = get_sentiments("nrc") %>% 
+  filter(sentiment == "negative")
+
+positive = get_sentiments("nrc") %>% 
+  filter(sentiment == "positive")
+
+
+mydict <- dictionary(list(negative,positive))
+
+dfm.sentiment.keywordSucc <- dfm(kewywordsSuccCorpus, 
+                     remove = c(swlist,stopwords("english")), 
+                     verbose=TRUE, 
+                     dictionary = mydict,
+                     stem=FALSE)
+topfeatures(dfm.sentiment.keywordSucc)
+
+dfm.sentiment.keywordSucc
+
+#Visualization
+
+library(wordcloud)
+set.seed(142)   #keeps cloud' shape fixed
+dark2 <- brewer.pal(8, "Set1")   
+freq<-topfeatures(dfm.stem.keywordSucc, n=500)
+
+wordcloud(names(freq), 
+          freq, max.words=200, 
+          scale=c(3, .1), 
+          colors=brewer.pal(8, "Set1"))
+
+```
+Analysis successful reviews
+```{r}
+reviewSucc<-successfulMovies$review_content
+successfulMovies$review_content
+
+#Substituting punctiation
+
+reviewSucc <- gsub("'", "", reviewSucc) # remove apostrophes
+reviewSucc <- gsub("[[:punct:]]", " ", reviewSucc)  # replace punctuation with space
+reviewSucc <- gsub("[[:cntrl:]]", " ", reviewSucc)  # replace control characters with space
+reviewSucc <- gsub("^[[:space:]]+", "", reviewSucc) # remove whitespace at beginning of documents
+reviewSucc<- gsub("[[:space:]]+$", "", reviewSucc) # remove whitespace at end of documents
+reviewSucc<- gsub("[^a-zA-Z -]", " ", reviewSucc) # allows only letters
+reviewSucc<- tolower(reviewSucc)  # force to lowercase
+
+#Preprocessing
+library(quanteda)
+library(janeaustenr)
+library(dplyr)
+library(stringr)
+reviewSuccCorpus<- corpus(reviewSucc)
+#explore the corpus
+summary(kewywordsSuccCorpus)  #summary of corpus
+
+
+#create document feature matrix from clean corpus + stem
+dfm.simple.reviewSucc<- dfm(reviewSuccCorpus, 
+                 remove = stopwords("english"), 
+                 verbose=TRUE, 
+                 stem=FALSE)
+
+topfeatures(dfm.simple.reviewSucc, n=50)
+
+# create a custom dictonary
+swlist = c("t", "s", "u","one", "two", "also", "take", "go","for", 
+           "us", "can", "may", "now", "year", "movie", "film" , "story")
+
+dfmReviewSucc<- dfm(reviewSuccCorpus, 
+          remove = c(swlist,stopwords("english")), 
+          verbose=TRUE, 
+          stem=FALSE)
+
+topfeatures(dfm, n=50)
+
+dfm.stem.reviewSucc<- dfm(reviewSuccCorpus, 
+               remove = c(swlist,stopwords("english")), 
+               verbose=TRUE, 
+               stem=TRUE)
+#Analysis of top features
+topfeatures(dfm.stem, n=50)
+
+
+#Sentiment Analysis
+library(tidytext)
+library(textdata)
+library(tidyr)
+library(tidyft)
+
+NrcSentiments<-get_sentiments("nrc")
+BingSentiments<-get_sentiments("bing")
+AfinnSentiments<-get_sentiments("afinn")
+
+table(NrcSentiments$sentiment)
+NrcNegative<-subset(NrcSentiments,NrcSentiments$sentiment=="anger" | NrcSentiments$sentiment=="disgust" | NrcSentiments$sentiment=="fear" | NrcSentiments$sentiment=="negative" | NrcSentiments$sentiment=="sadness")
+
+NrcPositive<-subset(NrcSentiments,NrcSentiments$sentiment=="joy" | NrcSentiments$sentiment=="positive" | NrcSentiments$sentiment=="trust" | NrcSentiments$sentiment=="surprise")
+
+Nrcdict <- dictionary(list(negative=NrcNegative$word,positive=NrcPositive$word))
+
+dfm.sentiment.reviewSucc <- dfm(reviewSuccCorpus, 
+                     remove = c(swlist,stopwords("english")), 
+                     verbose=TRUE, 
+                     dictionary = Nrcdict,
+                     stem=FALSE)
+topfeatures(dfm.sentiment.reviewSucc )
+
+table(BingSentiments$sentiment)
+BingPositive<-subset(BingSentiments, BingSentiments$sentiment=="positive")
+BingNegative<-subset(BingSentiments, BingSentiments$sentiment=="negative")
+Bingdict <- dictionary(list(negative=BingNegative$word,positive=BingPositive$word))
+
+dfm.sentiment.reviewSucc <- dfm(reviewSuccCorpus, 
+                     remove = c(swlist,stopwords("english")), 
+                     verbose=TRUE, 
+                     dictionary = Bingdict,
+                     stem=FALSE)
+topfeatures(dfm.sentiment.reviewSucc )
+
+
+AfinnPositive<-subset(AfinnSentiments,AfinnSentiments$value>0)
+AfinnNegative<-subset(AfinnSentiments,AfinnSentiments$value<0)
+
+Afinndict <- dictionary(list(negative=AfinnNegative$word,positive=AfinnPositive$word))
+
+dfm.sentiment.reviewSucc <- dfm(reviewSuccCorpus, 
+                     remove = c(swlist,stopwords("english")), 
+                     verbose=TRUE, 
+                     dictionary = Afinndict,
+                     stem=FALSE)
+topfeatures(dfm.sentiment.reviewSucc )
+
+
+dfm.sentiment.keywordSucc
+
+#Visualization
+
+library(wordcloud)
+set.seed(142)   #keeps cloud' shape fixed
+dark2 <- brewer.pal(8, "Set1")   
+freq<-topfeatures(dfm.stem.reviewSucc, n=500)
+
+wordcloud(names(freq), 
+          freq, max.words=200, 
+          scale=c(3, .1), 
+          colors=brewer.pal(8, "Set1"))
+
+```
+
+```{r}
+reviewUnsucc<-unsuccessfulMovies$review_content
+reviewUnsucc
+
+
+
+reviewUnsucc <- gsub("'", "", reviewUnsucc) 
+reviewUnsucc <- gsub("[[:punct:]]", " ", reviewUnsucc)  
+reviewUnsucc <- gsub("[[:cntrl:]]", " ", reviewUnsucc)  # replace control characters with space
+reviewUnsucc <- gsub("^[[:space:]]+", "", reviewUnsucc) # remove whitespace at beginning of documents
+reviewUnsucc<- gsub("[[:space:]]+$", "", reviewUnsucc) # remove whitespace at end of documents
+reviewUnsucc<- gsub("[^a-zA-Z -]", " ", reviewUnsucc) # allows only letters
+reviewUnsucc<- tolower(reviewUnsucc)  # force to lowercase
+
+
+reviewUnsuccCorpus<- corpus(reviewUnsucc)
+#explore the corpus
+summary(reviewUnsuccCorpus)  #summary of corpus
+
+
+#create document feature matrix from clean corpus + stem
+dfm.simple.reviewUnsucc<- dfm(reviewUnsuccCorpus, 
+                 remove = stopwords("english"), 
+                 verbose=TRUE, 
+                 stem=FALSE)
+
+topfeatures(dfm.simple.reviewUnsucc, n=50)
+
+# create a custom dictonary
+swlist = c("t", "s", "u","one", "two", "also", "take", "go", "like","for", 
+           "us", "can", "may", "now", "year", "film", "movie", "stori", "time")
+
+dfmreviewUnsucc<- dfm(reviewUnsuccCorpus, 
+          remove = c(swlist,stopwords("english")), 
+          verbose=TRUE, 
+          stem=FALSE)
+
+topfeatures(dfm, n=50)
+
+dfm.stem.reviewUnsucc<- dfm(reviewUnsuccCorpus, 
+               remove = c(swlist,stopwords("english")), 
+               verbose=TRUE, 
+               stem=TRUE)
+#Analysis of top features
+topfeatures(dfm.stem.reviewUnsucc, n=50)
+
+dfm.sentiment.reviewUnsucc <- dfm(reviewUnsuccCorpus, 
+                     remove = c(swlist,stopwords("english")), 
+                     verbose=TRUE, 
+                     dictionary = Bingdict,
+                     stem=FALSE)
+topfeatures(dfm.sentiment.reviewUnsucc)
+
+dfm.sentiment.reviewUnsucc <- dfm(reviewUnsuccCorpus, 
+                     remove = c(swlist,stopwords("english")), 
+                     verbose=TRUE, 
+                     dictionary = Nrcdict,
+                     stem=FALSE)
+topfeatures(dfm.sentiment.reviewUnsucc)
+
+dfm.sentiment.reviewUnsucc <- dfm(reviewUnsuccCorpus, 
+                     remove = c(swlist,stopwords("english")), 
+                     verbose=TRUE, 
+                     dictionary = Afinndict,
+                     stem=FALSE)
+topfeatures(dfm.sentiment.reviewUnsucc)
+
+dfm.sentiment.reviewUnsucc
+
+set.seed(142)   #keeps cloud' shape fixed
+dark2 <- brewer.pal(8, "Set1")   
+freq<-topfeatures(dfm.stem.reviewUnsucc, n=500)
+
+wordcloud(names(freq), 
+          freq, max.words=200, 
+          scale=c(3, .1), 
+          colors=brewer.pal(8, "Set1"))
+
+```
+Analysis unsuccessful overview
+```{r}
+overviewUnsucc<-unsuccessfulMovies$overview
+
+#Substituting punctiation
+
+overviewUnsucc <- gsub("'", "", overviewUnsucc) # remove apostrophes
+overviewUnsucc <- gsub("[[:punct:]]", " ", overviewUnsucc)  # replace punctuation with space
+overviewUnsucc <- gsub("[[:cntrl:]]", " ", overviewUnsucc)  # replace control characters with space
+overviewUnsucc <- gsub("^[[:space:]]+", "", overviewUnsucc) # remove whitespace at beginning of documents
+overviewUnsucc<- gsub("[[:space:]]+$", "", overviewUnsucc) # remove whitespace at end of documents
+overviewUnsucc<- gsub("[^a-zA-Z -]", " ", overviewUnsucc) # allows only letters
+overviewUnsucc<- tolower(overviewUnsucc)  # force to lowercase
+
+#Preprocessing
+library(quanteda)
+library(janeaustenr)
+library(dplyr)
+library(stringr)
+overviewUnsuccCorpus<- corpus(overviewUnsucc)
+#explore the corpus
+summary(overviewUnsuccCorpus)  #summary of corpus
+
+
+#create document feature matrix from clean corpus + stem
+dfm.simple.overviewUnsucc<- dfm(overviewUnsuccCorpus, 
+                 remove = stopwords("english"), 
+                 verbose=TRUE, 
+                 stem=FALSE)
+
+topfeatures(dfm.simple.overviewUnsucc, n=50)
+
+# create a custom dictonary
+swlist = c("t", "s", "u","one", "two", "also", "take", "go", "like","for", 
+           "us", "can", "may", "now", "year", "base", "young", "life")
+
+dfmOverviewUnsucc<- dfm(overviewUnsuccCorpus, 
+          remove = c(swlist,stopwords("english")), 
+          verbose=TRUE, 
+          stem=FALSE)
+
+topfeatures(dfm, n=50)
+
+kwic(overviewUnsuccCorpus, "friends", 2)
+kwic(overviewUnsuccCorpus , "world", window = 3)
+kwic(overviewUnsuccCorpus, "life", 4)
+kwic(overviewUnsuccCorpus , "new", window = 3)
+kwic(overviewUnsuccCorpus , "family", window = 3)
+
+
+dfm.stem.overviewUnsucc<- dfm(overviewUnsuccCorpus, 
+               remove = c(swlist,stopwords("english")), 
+               verbose=TRUE, 
+               stem=TRUE)
+#Analysis of top features
+topfeatures(dfm.stem, n=50)
+
+
+#Sentiment Analysis
+library(tidytext)
+library(textdata)
+library(tidyr)
+library(tidyft)
+
+
+negative = get_sentiments("nrc") %>% 
+  filter(sentiment == "negative")
+
+positive = get_sentiments("nrc") %>% 
+  filter(sentiment == "positive")
+
+
+mydict <- dictionary(list(negative,positive))
+
+dfm.sentiment.overviewUnsucc <- dfm(overviewUnsuccCorpus, 
+                     remove = c(swlist,stopwords("english")), 
+                     verbose=TRUE, 
+                     dictionary = mydict,
+                     stem=FALSE)
+topfeatures(dfm.sentiment.overviewUnsucc)
+
+dfm.sentiment.keywordSucc
+
+#Visualization
+
+library(wordcloud)
+set.seed(142)   #keeps cloud' shape fixed
+dark2 <- brewer.pal(8, "Set1")   
+freq<-topfeatures(dfm.stem.overviewUnsucc, n=500)
+
+wordcloud(names(freq), 
+          freq, max.words=200, 
+          scale=c(3, .1), 
+          colors=brewer.pal(8, "Set1"))
+
+```
+
+Analysis unsuccessful keywords
+```{r}
+keywordUnsucc<-unsuccessfulMovies$keywords.y
+
+#Substituting punctiation
+
+keywordUnsucc <- gsub("'", "", keywordUnsucc) # remove apostrophes
+keywordUnsucc <- gsub("[[:punct:]]", " ", keywordUnsucc)  # replace punctuation with space
+keywordUnsucc <- gsub("[[:cntrl:]]", " ", keywordUnsucc)  # replace control characters with space
+keywordUnsucc <- gsub("^[[:space:]]+", "", keywordUnsucc) # remove whitespace at beginning of documents
+keywordUnsucc<- gsub("[[:space:]]+$", "", keywordUnsucc) # remove whitespace at end of documents
+keywordUnsucc<- gsub("[^a-zA-Z -]", " ", keywordUnsucc) # allows only letters
+keywordUnsucc<- tolower(keywordUnsucc)  # force to lowercase
+
+#Preprocessing
+library(quanteda)
+library(janeaustenr)
+library(dplyr)
+library(stringr)
+keywordUnsuccCorpus<- corpus(keywordUnsucc)
+#explore the corpus
+summary(keywordUnsuccCorpus)  #summary of corpus
+
+
+#create document feature matrix from clean corpus + stem
+dfm.simple.keywordUnsucc<- dfm(keywordUnsuccCorpus, 
+                 remove = stopwords("english"), 
+                 verbose=TRUE, 
+                 stem=FALSE)
+
+topfeatures(dfm.simple.keywordUnsucc, n=50)
+
+# create a custom dictonary
+swlist = c("t", "s", "u","one", "two", "also", "take", "go", "like","for", 
+           "us", "can", "may", "now", "year", "base", "young", "life", "relationship")
+
+dfmkeywordUnsucc<- dfm(keywordUnsuccCorpus, 
+          remove = c(swlist,stopwords("english")), 
+          verbose=TRUE, 
+          stem=FALSE)
+
+topfeatures(dfmkeywordUnsucc, n=50)
+
+
+kwic(keywordUnsuccCorpus, "based", 2)
+kwic(keywordUnsuccCorpus , "relationship", window = 3)
+kwic(keywordUnsuccCorpus, "war", 4)
+kwic(keywordUnsuccCorpus , "book", window = 3)
+kwic(keywordUnsuccCorpus , "novel", window = 3)
+kwic(keywordUnsuccCorpus , "biograpgy", window = 3)
+kwic(keywordUnsuccCorpus , "sequel", window = 3)
+
+
+
+dfm.stem.keywordUnsucc<- dfm(keywordUnsuccCorpus, 
+               remove = c(swlist,stopwords("english")), 
+               verbose=TRUE, 
+               stem=TRUE)
+#Analysis of top features
+topfeatures(dfm.stem.keywordUnsucc, n=50)
+
+
+#Sentiment Analysis
+library(tidytext)
+library(textdata)
+library(tidyr)
+library(tidyft)
+
+
+negative = get_sentiments("nrc") %>% 
+  filter(sentiment == "negative")
+
+positive = get_sentiments("nrc") %>% 
+  filter(sentiment == "positive")
+
+
+mydict <- dictionary(list(negative,positive))
+
+dfm.sentiment.keywordUnsucc <- dfm(keywordUnsuccCorpus, 
+                     remove = c(swlist,stopwords("english")), 
+                     verbose=TRUE, 
+                     dictionary = mydict,
+                     stem=FALSE)
+topfeatures(dfm.sentiment.keywordUnsucc)
+
+dfm.sentiment.keywordUnsucc
+
+#Visualization
+
+library(wordcloud)
+set.seed(142)   #keeps cloud' shape fixed
+dark2 <- brewer.pal(8, "Set1")   
+freq<-topfeatures(dfmkeywordUnsucc, n=500)
+
+wordcloud(names(freq), 
+          freq, max.words=200, 
+          scale=c(3, .1), 
+          colors=brewer.pal(8, "Set1"))
+
+```
+
+
+
+
+
+
+
