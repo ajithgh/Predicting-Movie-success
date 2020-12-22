@@ -96,8 +96,8 @@ sum(is.na(df_movies))
 colnames(is.na(df_movies))
 
 with(na.omit(df_movies), 
-  hextri(revenue, vote_average, class=target, colours=c("skyblue","grey60","goldenrod"), style="size",
-            xlab="Revenue", ylab="Vote Average")
+  hextri(vote_count, vote_average, class=target, colours=c("skyblue","grey60","goldenrod"), style="size",
+            xlab="Vote Count", ylab="Vote Average")
 )
 ```
 
