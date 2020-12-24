@@ -1,0 +1,1455 @@
+---
+title: "Final Project | BA"
+author: "TEAM 1: Ajith, Abhishek, Gabriela, Palak, Russ"
+date: "12/13/2020"
+output:
+  word_document: default
+  html_document: default
+---
+
+
+**The Code File is Broken into 3 Parts:**
++ Part 0: Data Overview, Funneling and Cleaning
++ Part 1: Exploratory Data Analysis
++ Part 2: Data Enhancement (Imputation, Feature Engineering, Dummifying), Building models and Prediction
++ Part 3: Stretch Goals: Sentiment Analysis on Reviews, Overview & Keywords based on Movie Success (Seperately on Successful and Unsuccessful Movies)
+
+----
+\center Part - 0  \center
+---
+\center Data Overview, Funneling and Cleaning   \center
+---
+
+## Installing required libraries
+```{r}
+library(plyr)
+library(readr)
+library(ggplot2)
+library(GGally)
+library(dplyr)
+library(mlbench)
+library(dplyr)
+library(tidyverse)
+library(dataQualityR)
+library(ggplot2)
+library(ROSE)
+library(rpart)
+library(gbm)
+library(mlbench)
+library(caret)
+library(jsonlite)
+#install.packages("rlist")
+library(heatmaply)
+library(naniar)
+library(mice)
+library(randomForest)
+library(caret)
+library(fastDummies)
+library(rlist)
+library(scales)
+library(ggthemes)
+library(plotly)
+```
+
+
+# Importing File
+
+## Reading CSV
+```{r}
+url = "https://raw.githubusercontent.com/abhishek-gupta-nyu/themoviedb/master/final/final.csv"
+df_movies <- read.csv(url, header = TRUE, stringsAsFactors = FALSE)
+```
+
+## Raw Data summarisation.
+```{r}
+head(df_movies)
+view(df_movies)
+dim(df_movies)
+str(df_movies)
+```
+
+
+## Checking Raw Data quality
+ + Script loads a file and produces a data quality report for
+ + numerical variables: "dq_num.csv"
+ + categorical variables: "dq_cat.cs"
+```{r}
+library(dataQualityR)   #dataquality package
+
+checkDataQuality(data = df_movies, 
+                 out.file.num ="dq_num.csv", 
+                 out.file.cat= "dq_cat.csv")
+dq_num<-read.csv("dq_num.csv")
+dq_cat<-read.csv("dq_cat.csv")
+dq_num
+dq_cat
+```
+
+
+# Raw EDA
+
+## Creating additional column 1 for those attributes that have more than 1 word separated by a comma, 0 for the attributes with a single value
++ Genre
++ Production Countries
++ Production Companies
++ Keywords
++ Director
++ Spoken Languages
+```{r}
+df_movies$moreThan1ProductionCountry<-ifelse(str_detect(df_movies$production_countries,",([a-zA-z])",) ,1,0)
+df_movies$moreThan1Genre<-ifelse(str_detect(df_movies$genre,",([a-zA-z])",) ,1,0)
+df_movies$moreThan1ProductionCompany<-ifelse(str_detect(df_movies$production_companies,",([a-zA-z])",) ,1,0)
+df_movies$moreThan1Keyword<-ifelse(str_detect(df_movies$keywords,",([a-zA-z])",) ,1,0)
+df_movies$moreThan1Director<-ifelse(str_detect(df_movies$director,",([a-zA-z])",) ,1,0)
+df_movies$moreThanSpokenLanguage<-ifelse(str_detect(df_movies$spoken_languages,",([a-zA-z])",) ,1,0)
+view(df_movies)
+```
+
+## New Columns
+```{r}
+df_movies$genrecount = ifelse(df_movies$genre == "",0,str_count(df_movies$genre, pattern = ","))
+view(df_movies)
+```
+
+
+## Removing everything adter the comma for the above columns excep "Spoken Languages"
+```{r}
+df_movies$production_countries<- gsub(",.*$", " ", df_movies$production_countries )
+df_movies$genre<- gsub(",.*$", " ", df_movies$genre )
+df_movies$production_companies<- gsub(",.*$", " ", df_movies$production_companies )
+df_movies$keywords<- gsub(",.*$", " ", df_movies$keywords )
+df_movies$director<- gsub(",.*$", " ", df_movies$director )
+```
+
+## Removing Data Records produced in countires that have 0 revenue and 0 budget. 
+```{r}
+df_movies <- subset(df_movies, (df_movies$revenue!=0 | df_movies$budget!=0))
+nrow(df_movies)
+write.csv(df_movies,"rv_bud.csv") # This is later used as Input for Part 1 & 2.
+
+
+
+# Aggregating based on country
+countriesRevbud <-aggregate( x = df_movies[c("revenue","budget")],
+                     by = list(df_movies$production_countries),
+                     FUN = "mean")
+view(countriesRevbud)
+nrow(countriesRevbud)
+
+#Removing Records based on countries with aggregated (Revenue = 0 and budget = 0)
+countries0<-subset(countriesRevbud, (countriesRevbud$revenue!=0 & countriesRevbud$budget!=0))
+view(countries0)
+nrow(countries0)
+neededcuntries = unique(countries0$Group.1)
+neededcuntries
+
+# Subsetting entire data based on the above list
+df_movwith = subset(df_movies, (df_movies$production_countries %in% neededcuntries))
+nrow(df_movwith)
+
+# O/P df_movwith
+write.csv(df_movwith, "check.csv")
+# This file had 52k rows
+
+#Removing records with (Revenue = 0 and budget = 0)
+df_movwith <- subset(df_movwith, (df_movwith$revenue!=0 | df_movwith$budget!=0))
+nrow(df_movwith)
+write.csv(df_movwith,"check2.csv")
+```
+
+----
+\center Part - 1  \center
+---
+\center Exploratory Data Analysis   \center
+---
+
+This part uses the Data file from TPart 0. This part covers EDA.
+
+
+## 1. Reading CSV
+```{r}
+rawmovies_new = "https://raw.githubusercontent.com/ajithgh/Predicting-Movie-success/main/Final%20Data%20Sets/rv_bud_IMDB_All_providers.csv"
+movies_new = read.csv(rawmovies_new, header=TRUE,stringsAsFactors= FALSE)
+head(movies_new)
+summary(movies_new)
+str(movies_new)
+dim(movies_new)
+```
+
+
+## 2. Checking Data quality
++ Script loads a file and produces a data quality report for
++ numerical variables: "dq_num.csv"
++ categorical variables: "dq_cat.cs"
+```{r}
+checkDataQuality(data = movies_new, 
+                 out.file.num ="dq_num1.csv", 
+                 out.file.cat= "dq_cat1.csv")
+dq_num1<-read.csv("dq_num1.csv")
+dq_cat1<-read.csv("dq_cat1.csv")
+View(dq_num1)   
+View(dq_cat1) 
+```
+
+
+## 3. Basis analysis and plotting
+
+###3a. Genre vs. budget
+```{r}
+movies_new %>% group_by(genre) %>% 
+  summarise(n=n()) %>%
+  head()
+head(movies_new$budget)
+
+
+df_1 = movies_new
+library(dplyr)
+df_1 <- df_1 %>% group_by(genre) %>% summarise(me = mean(budget))
+df_1<- df_1[-c(1), ]
+
+
+P = 239/255
+ggplot(aes(x = reorder(genre,-me), y = me), data = df_1) + geom_bar(stat = "identity",fill="tomato3")+
+  labs(title="Movie budgets by genre", 
+       subtitle="Adventure topped the list") +
+  xlab("Genre") +
+  ylab("Budget ($)")+ scale_y_continuous(labels = dollar) + theme_classic()+
+  theme(axis.text.x = element_text(angle=45, hjust = 1))+
+  theme(axis.text=element_text(size=20),
+          axis.title=element_text(size=24,face="bold"))+
+  theme(plot.title = element_text(size = 35, face = "bold"))+
+  theme(plot.subtitle = element_text(size = 24)) +
+  theme(plot.background = element_rect(fill = rgb(P,P,P))) +
+  theme(panel.background = element_rect(fill = rgb(P,P,P)))
+```
+
+
+
+###  Genre box plots by IMDB ratings
+```{r}
+df_4 = movies_new
+df_4 = df_4[!(is.na(df_4$genre) | df_4$genre==""), ]
+
+#df_4 %>%
+  ggplot(aes(reorder(genre, Imdb_Rating, median, order = TRUE), y = Imdb_Rating, fill = genre)) + 
+  geom_boxplot() + 
+  coord_flip() + 
+  geom_label(data = typeLabelCount, aes(x = genre, y = 10, label = count),  hjust = 0, size = 8) + 
+  ggtitle("Box plot of Imdb ratings by popular movie genres") + 
+  guides(fill=FALSE) + 
+  ylim(0, 11) +
+  labs(x = "Popular movie genre", y = "IMDB rating")+ theme_classic()+
+  theme(axis.text=element_text(size=20),
+        axis.title=element_text(size=24,face="bold"))+
+  theme(plot.title = element_text(size = 35, face = "bold"))+
+  theme(plot.subtitle = element_text(size = 24)) +
+  theme(plot.background = element_rect(fill = rgb(P,P,P))) +
+  theme(panel.background = element_rect(fill = rgb(P,P,P)))
+```
+
+
+### Top 10 movies by genre 
+```{r}
+
+top10 <- head(df_movies[order(df_movies$revenue, decreasing = TRUE), c("original_title", "revenue")], n = 11)
+top10
+top10$original_title <- reorder(top10$original_title, as.integer(top10$revenue))
+
+```
+
+### Formating in Billions
+```{r}
+top10$revenue <- as.integer(top10$revenue)
+str(top10)
+top10<- top10[-c(1), ]
+top10$revenue = round(top10$revenue/10^9,2)
+view(top10)
+
+ggplot(top10, aes(y= revenue,x = reorder(original_title,-revenue))) +
+  geom_bar(stat="identity",fill="tomato3",width = 0.5)+
+  scale_y_continuous(labels = dollar)+
+  theme_classic()+
+  theme(axis.text.x = element_text(angle=45, hjust = 1))+
+  labs(x = "Movie", y = "Revenue (Billions)", title = "Top 10 Movies by Revenue ")+
+  theme(plot.background = element_rect(fill = rgb(P,P,P))) +
+  theme(panel.background = element_rect(fill = rgb(P,P,P)))+
+  theme(axis.text=element_text(size=20),
+        axis.title=element_text(size=24,face="bold"))+
+  theme(plot.title = element_text(size = 35, face = "bold"))+
+  theme(plot.subtitle = element_text(size = 24))
+```
+
+ 
+  
+### scatter plot of revenue vs. budget
+```{r}
+scatterPlot <- movies_new %>% 
+  ggplot(aes(x = cast_size, y = crew_size)) + 
+  geom_point(alpha= 1, colour = "tomato3", size = 4) + 
+  labs(y = "crew size", 
+       x = "cast size",
+       title = "Cast size vs. Crew size") +
+  theme_classic()+
+  theme(plot.background = element_rect(fill = rgb(P,P,P))) +
+  theme(panel.background = element_rect(fill = rgb(P,P,P)))+
+  theme(axis.text=element_text(size=20),
+        axis.title=element_text(size=24,face="bold"))+
+  theme(plot.title = element_text(size = 35, face = "bold"))+
+  theme(plot.subtitle = element_text(size = 24)) 
+movies %>% group_by(vote_average) %>% 
+  summarise(count=n()) %>%
+  ggplot(aes(x=vote_average, y=count)) + 
+  geom_line(colour = "tomato3") +
+  geom_point(size = 4,colour = "tomato3") +
+  scale_y_log10(breaks = trans_breaks("log10", function(x) 10^x),
+                labels = trans_format("log10", math_format(10^.x))) +
+  ggtitle("Ratings Distribution", subtitle = "What ratings are most common") + 
+  xlab("Ratings") +
+  ylab("Count") +
+  theme_classic()+
+  theme(plot.background = element_rect(fill = rgb(P,P,P))) +
+  theme(panel.background = element_rect(fill = rgb(P,P,P)))+
+  theme(axis.text=element_text(size=20),
+        axis.title=element_text(size=24,face="bold"))+
+  theme(plot.title = element_text(size = 35, face = "bold"))+
+  theme(plot.subtitle = element_text(size = 24))
+```
+
+----
+\center Part - 2  \center
+---
+\center Data Enhancement (Imputation, Feature Engineering, Dummifying), Building models and Prediction   \center
+---
+
+**INPUT:** This part uses the Output of PArt 1 as a new separate file and then has been added more features through different Tools such as Online Rent, Buy & Stream Providers.
+
+**CONTENT:** The codes below perform Feature Engineering (25+ Features added), little data cleaning, Imputation, Dummifying 7 Classification Modeling.
+
+**Modelling Part:** We used RF model for Initial Feature selection which helped reduce 513 features to 50. Then,
++ Using Rose Sampling, we did both Under and Over sampling.
++ Performed RF & GLM models on Random Data Split
++ Performed RF & GLM models on 2017-2018 as Training Data and tested on 2019 
++ Performed Predictions for these models
+
+# Importing File
+
+## Reading CSV
+```{r}
+getwd()
+
+url2 = "https://raw.githubusercontent.com/ajithgh/Predicting-Movie-success/main/Final%20Data%20Sets/rv_bud_IMDB_All_providers.csv"
+movies<- read.csv(url2 , header = TRUE, stringsAsFactors = TRUE)
+```
+
+## Raw Data summarisation.
+```{r}
+head(movies)
+dim(movies)
+str(movies)
+```
+
+
+
+
+## Checking Raw Data quality
+ + Script loads a file and produces a data quality report for
+ + numerical variables: "dq_num.csv"
+ + categorical variables: "dq_cat.cs"
+```{r}
+checkDataQuality(data = movies, 
+                 out.file.num ="dq_num.csv", 
+                 out.file.cat= "dq_cat.csv")
+dq_num<-read.csv("dq_num.csv")
+dq_cat<-read.csv("dq_cat.csv")
+dq_num
+dq_cat
+```
+
+# Feature Engineering before Imputation
+
+## Converting 0s to NAs
+```{r}
+movies$revenue[movies$revenue == 0] = NA
+movies$budget[movies$budget == 0] = NA
+movies$revenue[((movies$budget > 100000) && (movies$revenue < 1000))] = NA
+movies$budget[movies$revenue > 100000 & movies$budget < 1000] = NA
+movies$runtime[movies$runtime == 0] = NA
+movies$popularity[movies$popularity == 0] = NA
+movies$vote_average[movies$vote_average == 0] = NA
+movies$review_count[movies$review_count == 0] = NA
+movies$cast_size[movies$cast_size == 0] = NA
+movies$crew_size[movies$crew_size == 0] = NA
+movies$Imdb_vote_count[movies$Imdb_vote_count == ""] = 0
+movies$vote_count[movies$vote_count == ""] = 0
+```
+
+## Extracting Release Date
+```{r}
+#colnames(movies)
+#str(movies)
+movies$release_d = as.Date(movies$release_date, "%m/%d/%Y")
+movies$release_year = format(as.POSIXct(strptime(movies$release_d,"%Y-%m-%d", tz="")) ,format = "%Y")
+movies$release_month = format(as.POSIXct(strptime(movies$release_d,"%Y-%m-%d", tz="")) ,format = "%m")
+#view(movies)
+movies$release_month = as.integer(movies$release_month)
+```
+
+## Holiay month release
+```{r}
+#str(movies)
+movies$holidaymonth = ifelse((movies$release_month == 12 |movies$release_month == 06 | movies$release_month == 07) , 1, 0)
+table(movies$holidaymonth)
+```
+
+## Converting text features to Binomial and then subsetting it.
++ tagline
++ belongs to collection
+```{r}
+movies$taglinepresent = ifelse(movies$tagline == "", 0, 1)
+table(movies$taglinepresent)
+movies$collectionyes = ifelse(movies$belongs_to_collection == "", 0, 1)
+table(movies$collectionyes)
+movies2 = subset(movies, select = -c(tagline))
+#str(movies2)
+```
+
+## Converting Numerical feature for provider
+```{r}
+#str(movies2$all_uniq_providers)
+#movies2$providenos = str_count(movies2$all_uniq_providers, pattern = ",")
+#movies2$providenos = ifelse(movies2$all_uniq_providers == "",0,(str_count(movies2$all_uniq_providers, pattern = ",") + 1))
+#view(movies2)
+```
+
+
+
+#Data Imputation
+
+## Sample Method using MICE Package for numerical
+```{r}
+#colnames(movies2)
+samp = subset(movies2, select = c(revenue, budget, runtime, popularity, vote_average, vote_count, review_count, cast_size, crew_size, release_month, Imdb_Rating, Imdb_vote_count))
+
+# Using MICE, missing values are imputed through a linear regression prediction based on the existing values
+
+iv_samp = mice(data = samp, m = 5, method = "sample", maxit = 5)
+num_c_samp = complete(iv_samp, 1)
+
+moviessamp = subset(movies2, select = -c(revenue, budget, runtime, popularity, vote_average, vote_count, review_count, cast_size, crew_size, release_month, Imdb_Rating, Imdb_vote_count))
+#str(moviessamp)
+moviessamp = cbind(moviessamp, num_c_samp)
+colnames(moviessamp)
+sum(is.na(moviessamp))
+#View(moviessamp)
+```
+
+
+## Create New Features based on imputation
++ profit_factor
++ cast_crew_ratio
++ Target
+```{r}
+moviessamp$profit_factor = ((moviessamp$revenue - moviessamp$budget) / moviessamp$budget)*100
+moviessamp$cast_crew_ratio = moviessamp$cast_size / movies$crew_size
+#movies$targetprofit = ifelse(movies$profit_factor < 1, 0, ifelse(movies$profit_factor >= 1 & movies$profit_factor < 2, 1, 2))
+moviessamp$Target = ifelse(moviessamp$profit_factor < 1, 0, 1)
+table(moviessamp$Target)
+```
+
+## Feature based on Revenue and other columns
++ movie directed by a high paid director?
++ most profitable production companies
++ avg. revenue of Collection
++ Competition during Release
++ most profitable genre
++ Avg revenue by crew size
++ Avg Revenue by cast Size
++ Cost per Capita
++ Avg Budget oer Genre
++ Within 1-σ Runtime
++ Within 1-σ Combined Rating
+```{r}
+# movie directed by a high paid director? | 0 or 1
+mostpopulardirectors<-arrange(aggregate(moviessamp$revenue, by=list(moviessamp$director), FUN="mean"), desc(x))
+top10directors<-top_n(mostpopulardirectors,10)
+top10directors
+top10directors<-top10directors$Group.1
+
+moviessamp$directedByAPopular<-ifelse(moviessamp$director %in% top10directors, 1, 0)
+table(moviessamp$directedByAPopular)
+
+# most profitable production companies | 0 or 1
+mostprofitableProducComp<-arrange(aggregate(moviessamp$revenue, by=list(moviessamp$production_companies), FUN= "mean"), desc(x))
+mostprofitableProducComp<-top_n(mostprofitableProducComp,20)
+mostprofitableProducComp<-mostprofitableProducComp$Group.1
+
+moviessamp$belongs_to_topProfitProdComp<-if_else(moviessamp$production_companies %in% mostprofitableProducComp,1, 0)
+table(moviessamp$belongs_to_topProfitProdComp)
+
+
+## Feature 3 average revenue collection movie | number
+avg_collection_movies<-arrange(aggregate(moviessamp$revenue, by=list(moviessamp$belongs_to_collection), FUN= "mean"), desc(x))
+avg_collection_movies<-rename(avg_collection_movies, "belongs_to_collection"="Group.1")
+avg_collection_movies<-rename(avg_collection_movies, "avg_coll_revenue"="x")
+avg_collection_movies
+moviessamp<-inner_join(moviessamp,avg_collection_movies, by="belongs_to_collection" )
+#str(moviessamp)
+
+
+# Feature 4 competition during release | Number  
+moviessamp$release_week<-strftime(moviessamp$release_d, format = "%V")
+releasedMoviesByWeek<-aggregate(moviessamp$id,by=list(moviessamp$release_week), FUN= "length")
+releasedMoviesByWeek<-rename(releasedMoviesByWeek, "release_week"="Group.1")
+releasedMoviesByWeek<-rename(releasedMoviesByWeek, "movies_released_same_week"="x")
+releasedMoviesByWeek
+moviessamp<-inner_join(moviessamp,releasedMoviesByWeek, by="release_week" )
+
+
+## Feature 5 most profitable genres | 1 or 0
+mostprofitableGenres<-arrange(aggregate(moviessamp$revenue,by=list(moviessamp$genre), FUN="mean"), desc(x))
+mostprofitableGenres<-top_n(mostprofitableGenres,20)
+mostprofitableGenres<-mostprofitableGenres$Group.1
+mostprofitableGenres
+moviessamp$belongs_to_topProfitGenres<-if_else(moviessamp$genre %in% mostprofitableGenres,1, 0)
+
+
+## Feature 6 : Avg revenue by crew size | number
+avg_rev_by_crew_size<-arrange(aggregate(moviessamp$revenue,by=list(moviessamp$crew_size), FUN="mean"), desc(x))
+avg_rev_by_crew_size<-rename(avg_rev_by_crew_size, "crew_size"="Group.1")
+avg_rev_by_crew_size<-rename(avg_rev_by_crew_size, "avg_rev_by_crew_size"="x")
+avg_rev_by_crew_size
+moviessamp<-inner_join(moviessamp,avg_rev_by_crew_size, by="crew_size" )
+
+
+## Feature 7:  Avg revenue by cast size
+
+avg_rev_by_cast_size<-arrange(aggregate(moviessamp$revenue,by=list(moviessamp$cast_size), FUN="mean"), desc(x))
+avg_rev_by_cast_size<-rename(avg_rev_by_cast_size, "cast_size"="Group.1")
+avg_rev_by_cast_size<-rename(avg_rev_by_cast_size, "avg_rev_by_cast_size"="x")
+avg_rev_by_cast_size
+moviessamp<-inner_join(moviessamp,avg_rev_by_cast_size, by="cast_size" )
+
+
+#Features 8:  Cost per Capita
+moviessamp$costPerCapita<-moviessamp$budget/(moviessamp$crew_size+movies$cast_size)
+str(moviessamp)
+
+
+## Feature 9: Avg. budget per genre | number
+budgetpergenre<-arrange(aggregate(moviessamp$budget ,by=list(moviessamp$genre), FUN="mean"), desc(x))
+budgetpergenre<-rename(budgetpergenre, "genre"="Group.1")
+budgetpergenre<-rename(budgetpergenre, "avg_budget_per_genre"="x") 
+budgetpergenre
+moviessamp<-inner_join(moviessamp,budgetpergenre, by="genre")
+
+
+#Features 10 - Within 1-σ Runtime: take average and flag movies above or below 1sd from it | 1 or 0
+avgRuntime<-mean(moviessamp$runtime, na.rm=TRUE)
+sdRuntime<-sd(moviessamp$runtime, na.rm=TRUE)
+runtimeabove1sd<-avgRuntime+sdRuntime
+runtimebelow1d<-avgRuntime-sdRuntime
+moviessamp$aboveORbelowAVGRuntime<-ifelse(moviessamp$runtime>runtimeabove1sd | moviessamp$runtime<runtimebelow1d, 1, 0)
+avgRuntime
+median(moviessamp$runtime)
+sdRuntime
+
+
+#Features 11 - Within 1-σ combined Rating: rating take average and flag movies above or below 1sd from it | 1: Yes or 0: No
+avgRating<- ((mean(moviessamp$Imdb_Rating, na.rm=TRUE)) + (mean(moviessamp$vote_average, na.rm=TRUE))) / 2
+sdRaiting<-((sd(moviessamp$Imdb_Rating, na.rm=TRUE)) + (sd(moviessamp$vote_average, na.rm=TRUE))) / 2
+raitingAbove1sd<-avgRating+sdRaiting
+raitingBelow1d<-avgRating-sdRaiting
+moviessamp$aboveORbelowAVGRRaiting<-ifelse(moviessamp$Imdb_Rating>raitingAbove1sd | moviessamp$Imdb_Rating<raitingBelow1d, 1, 0)
+table(moviessamp$aboveORbelowAVGRRaiting)
+summary(avgRating)
+```
+
+
+
+## Sample Method using MICE Package for cast-crew-ratio and holdidaymonths
+```{r}
+
+samp2 = subset(moviessamp, select = c(cast_crew_ratio, holidaymonth, costPerCapita))
+
+# Using MICE, missing values are imputed through a linear regression prediction based on the existing values
+
+iv_samp2 = mice(data = samp2, m = 5, method = "sample", maxit = 5)
+num_c_samp2 = complete(iv_samp2, 1)
+
+moviessamp2 = subset(moviessamp, select = -c(cast_crew_ratio, holidaymonth, costPerCapita))
+moviessamp2 = cbind(moviessamp2, num_c_samp2)
+sum(is.na(moviessamp2))
+#str(moviessamp2)
+```
+
+## Output Non-Zero Imputed File
+```{r}
+#write.csv(moviessamp2,"Imputed file SunNight.csv")
+```
+
+
+## Removing Unwanted columns and converting to factors
+```{r}
+df = subset(moviessamp2, select = -c(X, original_title, backdrop_path, homepage, imdb_id, id, poster_path, release_date, status, title, video, keywords, director, production_companies, release_d, belongs_to_collection, rent_options, buy_options, flatrate_options, release_week))
+
+colnames(df)
+df$release_month = as.factor(df$release_month)
+df$release_year = as.factor(df$release_year)
+str(df$release_year)
+```
+
+# Dummify Factors
+
+## Dummify Factor Columns
+```{r}
+
+dummy = dummy_cols(
+  df,
+  select_columns = c(
+    "original_language",
+    "adult",
+    "genre",
+    "spoken_languages",
+    "production_countries",
+    "release_month",
+    "all_uniq_providers"
+  ),
+  split = ",",
+  remove_selected_columns = TRUE
+)
+
+dim(dummy)
+sum(is.na(dummy))
+
+```
+
+## Improve the naming of attributes
+```{r}
+library(stringr)
+
+names(dummy)<-str_replace_all(names(dummy)," ","_")
+names(dummy)<-str_replace_all(names(dummy),"_/_","_")
+names(dummy)<-str_replace_all(names(dummy),",_","_")
+names(dummy)<-str_replace_all(names(dummy),":_","_")
+names(dummy)<-str_replace_all(names(dummy),"/","_")
+names(dummy)<-str_replace_all(names(dummy),"-","_")
+
+dim(dummy)
+```
+Rough Work
+```{r}
+```
+
+
+# Modelling
++ With Random Test/Train Data sets
++ Train: 2017-2018 & Test : 2019
++ Train: 2017-2018 & Test : 2020
+
+##Creating Two Train Data sets and 3 test Data Sets
+```{r}
+# Pair 1: Random Test/Train Data Sets
+
+finaldata = subset(dummy, select = -c(profit_factor, revenue ))
+
+set.seed(103)
+
+split = 0.8
+
+# After cleaning the data, predictions can now be made on the feature importance
+# First thing we do is create testing and training sets
+
+index = createDataPartition(finaldata$Target, p= split, list=FALSE)
+
+train_data = finaldata[index, ]
+test_data  = finaldata[-index, ]
+
+# Pair 2: Train17_18 & Test19
+
+train17_18 = subset(finaldata, finaldata$release_year == 2017 | finaldata$release_year == 2018)
+train19  = subset(finaldata, finaldata$release_year == 2019)
+
+# Pair 3: Train17_18 & Test20
+test20 = subset(finaldata, finaldata$release_year == 2020)
+test21 = subset(finaldata, finaldata$release_year == 2021)
+
+```
+
+----
+# 1. Modelling With Random Test/Train Data sets
+----
+
+
+## RF Model for feature selection 
+```{r}
+
+train_data$Target = as.factor(train_data$Target)
+
+
+# In order to trim down the number of features to be used, a Random Forest model is used with bagging to find the most important ones using the randomForest model with 300 trees and 9 features per bag 9 features was chosen as it is close to the square root of the feature size.
+
+
+rfModel = randomForest(Target ~ ., 
+                       data = train_data,
+                       ntree = 300,
+                       mtry = 9,
+                       replace = T)
+
+
+
+varImpPlot(rfModel)
+#importance(rfModel)
+
+```
+
+
+## Top 50 Important features from RF
+```{r}
+var_importance = cbind(names(subset(finaldata, select = -c(Target))), varImp(rfModel))
+var_importance = arrange(var_importance, desc(Overall))
+
+var_importance$Features = var_importance$`names(subset(finaldata, select = -c(Target)))`
+
+col_names = as.data.frame(var_importance$Features[1:50])
+
+names(df) %in% col_names$`var_importance$Features[1:50]`
+
+important_data = subset(finaldata, select = names(finaldata) %in% col_names$`var_importance$Features[1:50]`)
+important_data$Target = finaldata$Target
+```
+
+Once we have a dataset of only 25 of the most important features we can balance the dataset to an 50:50 ratio using the ROSE package
+
+## ROSE Sampling
+```{r}
+important_data_balanced = ovun.sample(Target~., data = important_data, method = "both",  p=0.6)$data
+prop.table(table(important_data_balanced$Target))
+
+train_data = important_data_balanced[index, ]
+test_data  = important_data_balanced[-index, ]
+train_data$Target = as.factor(train_data$Target)
+```
+
+
+Once we have the most important features, and a balanced dataset,  the first model to run is Logistic Regression using lgm
+
+## Logistic Regression
+
+### Predicting using GLM Model 
+```{r}
+logModel = glm(Target ~ ., data = train_data, family = "binomial", maxit = 100)
+
+predictions_log = as.data.frame(as.factor(ifelse(predict(logModel, 
+                                                         test_data, 
+                                                         type = "response")>0.5, 1, 0)))
+
+```
+
+Using caret and ROSE, a confusion matrix and ROC curve are created respectively
+
+### Confusion Matrix for above glm model
+```{r}
+test_data$Target = as.factor(test_data$Target)
+
+confusionMatrix(predictions_log$`as.factor(ifelse(predict(logModel, test_data, type = "response") > 0.5, 1, 0))`, 
+                test_data$Target)
+
+roc.curve(test_data$Target, 
+          predictions_log$`as.factor(ifelse(predict(logModel, test_data, type = "response") > 0.5, 1, 0))`,
+          plotit = T,
+          main = "Logistic Regression Model")
+```
+
+
+
+## RF Model again
+The second model to run is a repeat of the one used when selecting features
+```{r}
+rfModel2 = randomForest(Target ~ ., 
+                       data = train_data,
+                       ntree = 300, 
+                       mtry = 9, 
+                       replace = T) 
+predictions_rf2 = as.data.frame(predict(rfModel2, 
+                                       test_data, 
+                                       type = "response"))
+```
+
+### Prediction using RF Model
+```{r}
+confusionMatrix(predictions_rf2$`predict(rfModel2, test_data, type = "response")`,
+                test_data$Target)
+
+roc.curve(test_data$Target, 
+          predictions_rf2$`predict(rfModel2, test_data, type = "response")`,
+          plotit = T,
+          main = "ROC Curve for Random Forest w/ Bagging Model")
+```
+
+
+----
+# 2. Modeling with Train: 2017-2018 & Test : 2019
+---
+
+## RF Model for feature selection 
+```{r}
+
+train17_18$Target = as.factor(train17_18$Target)
+
+
+# In order to trim down the number of features to be used, a Random Forest model is used with bagging to find the most important ones using the randomForest model with 300 trees and 9 features per bag 9 features was chosen as it is close to the square root of the feature size.
+
+
+rfModel = randomForest(Target ~ ., 
+                       data = train17_18,
+                       ntree = 300,
+                       mtry = 9,
+                       replace = T)
+
+
+
+varImpPlot(rfModel)
+#importance(rfModel)
+
+```
+
+## Top 50 Important features from RF
+```{r}
+var_importance = cbind(names(subset(finaldata, select = -c(Target))), varImp(rfModel))
+var_importance = arrange(var_importance, desc(Overall))
+
+var_importance$Features = var_importance$`names(subset(finaldata, select = -c(Target)))`
+
+col_names = as.data.frame(var_importance$Features[1:50])
+
+names(df) %in% col_names$`var_importance$Features[1:50]`
+
+important_data = subset(finaldata, select = names(finaldata) %in% col_names$`var_importance$Features[1:50]`)
+important_data$Target = finaldata$Target
+```
+
+Once we have a dataset of only 25 of the most important features we can balance the dataset to an 50:50 ratio using the ROSE package
+
+## ROSE Sampling
+```{r}
+important_data_balanced = ovun.sample(Target~., data = important_data, method = "both",  p=0.6)$data
+prop.table(table(important_data_balanced$Target))
+
+train17_18 = important_data_balanced[index, ]
+test19  = important_data_balanced[-index, ]
+train17_18$Target = as.factor(train17_18$Target)
+```
+
+
+Once we have the most important features, and a balanced dataset,  the first model to run is Logistic Regression using lgm
+
+## Logistic Regression
+
+### Predicting using GLM Model 
+```{r}
+logModel = glm(Target ~ ., data = train17_18, family = "binomial", maxit = 100)
+
+predictions_log = as.data.frame(as.factor(ifelse(predict(logModel, 
+                                                         test19, 
+                                                         type = "response")>0.5, 1, 0)))
+
+```
+
+Using caret and ROSE, a confusion matrix and ROC curve are created respectively
+
+### Confusion Matrix for above glm model
+```{r}
+test19$Target = as.factor(test19$Target)
+
+confusionMatrix(predictions_log$`as.factor(ifelse(predict(logModel, test19, type = "response") > 0.5, 1, 0))`, 
+                test19$Target)
+
+roc.curve(test19$Target, 
+          predictions_log$`as.factor(ifelse(predict(logModel, test19, type = "response") > 0.5, 1, 0))`,
+          plotit = T,
+          main = "Logistic Regression Model")
+```
+
+## RF Model again
+The second model to run is a repeat of the one used when selecting features
+```{r}
+rfModel2 = randomForest(Target ~ ., 
+                       data = train17_18,
+                       ntree = 300, 
+                       mtry = 9, 
+                       replace = T) 
+predictions_rf2 = as.data.frame(predict(rfModel2, 
+                                       test19, 
+                                       type = "response"))
+```
+
+### Prediction using RF Model
+```{r}
+confusionMatrix(predictions_rf2$`predict(rfModel2, test19, type = "response")`,
+                test19$Target)
+
+roc.curve(test19$Target, 
+          predictions_rf2$`predict(rfModel2, test19, type = "response")`,
+          plotit = T,
+          main = "ROC Curve for Random Forest w/ Bagging Model")
+```
+
+
+----
+# 3. Modeling with Train: 2017-2018 & Test : 2020
+----
+
+
+We already have a dataset of only 50 of the most important features we can balance the dataset to an 50:50 ratio using the ROSE package
+
+## ROSE Sampling
+```{r}
+important_data_balanced = ovun.sample(Target~., data = important_data, method = "both",  p=0.6)$data
+prop.table(table(important_data_balanced$Target))
+
+train17_18 = important_data_balanced[index, ]
+test20  = important_data_balanced[-index, ]
+train17_18$Target = as.factor(train17_18$Target)
+```
+
+
+Once we have the most important features, and a balanced dataset,  the first model to run is Logistic Regression using lgm
+
+## Logistic Regression
+
+### Predicting using GLM Model 
+```{r}
+logModel = glm(Target ~ ., data = train17_18, family = "binomial", maxit = 100)
+
+predictions_log = as.data.frame(as.factor(ifelse(predict(logModel, 
+                                                         test20, 
+                                                         type = "response")>0.5, 1, 0)))
+
+```
+
+Using caret and ROSE, a confusion matrix and ROC curve are created respectively
+
+### Confusion Matrix for above glm model
+```{r}
+test20$Target = as.factor(test20$Target)
+
+confusionMatrix(predictions_log$`as.factor(ifelse(predict(logModel, test20, type = "response") > 0.5, 1, 0))`, 
+                test20$Target)
+
+roc.curve(test20$Target, 
+          predictions_log$`as.factor(ifelse(predict(logModel, test20, type = "response") > 0.5, 1, 0))`,
+          plotit = T,
+          main = "Logistic Regression Model")
+```
+
+
+## RF Model again
+The second model to run is a repeat of the one used when selecting features
+```{r}
+rfModel2 = randomForest(Target ~ ., 
+                       data = train17_18,
+                       ntree = 300, 
+                       mtry = 9, 
+                       replace = T) 
+predictions_rf2 = as.data.frame(predict(rfModel2, 
+                                       test20, 
+                                       type = "response"))
+```
+
+### Prediction using RF Model
+```{r}
+confusionMatrix(predictions_rf2$`predict(rfModel2, test20, type = "response")`,
+                test20$Target)
+
+roc.curve(test20$Target, 
+          predictions_rf2$`predict(rfModel2, test20, type = "response")`,
+          plotit = T,
+          main = "ROC Curve for Random Forest w/ Bagging Model")
+```
+
+
+Using this model, you can now predict Profitability and classify any movie as profitable or not profitable. 
+
+----
+\center Part - 3  \center
+---
+\center Sentiment Analysis on Reviews, Overview & Keywords based on Movie Success   \center
+---
+
+The file used here is also scrapped from the Movie Database. It has 4 columns including Movie ID, Profit Factor ( 0 or 1 based on profitability) Keywords, overview and Review contents
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+getwd()
+texturl = "https://raw.githubusercontent.com/ajithgh/Predicting-Movie-success/main/textClassfied.csv"
+moviesClassified<- read.csv(texturl, header = TRUE, stringsAsFactors = TRUE)
+textAnalysis<-read.csv("Text Analytics Data_Reviews_overviewSucc_keywords_Id.csv")
+textClassifed<-merge(moviesClassified,textAnalysis, by="id")
+successfulMovies<-subset(textClassifed,textClassifed$Target==1)
+unsuccessfulMovies<-subset(textClassifed,textClassifed$Target==0)
+length(successfulMovies$id)
+length(unsuccessfulMovies$id)
+```
+Using Overview as corpus
+```{r}
+overviewSucc<-successfulMovies$overview
+```
+
+Substituting punctiation
+```{r}
+overviewSucc <- gsub("'", "", overviewSucc) # remove apostrophes
+overviewSucc <- gsub("[[:punct:]]", " ", overviewSucc)  # replace punctuation with space
+overviewSucc <- gsub("[[:cntrl:]]", " ", overviewSucc)  # replace control characters with space
+overviewSucc <- gsub("^[[:space:]]+", "", overviewSucc) # remove whitespace at beginning of documents
+overviewSucc<- gsub("[[:space:]]+$", "", overviewSucc) # remove whitespace at end of documents
+overviewSucc<- gsub("[^a-zA-Z -]", " ", overviewSucc) # allows only letters
+overview<- tolower(overviewSucc)  # force to lowercase
+```
+
+Preprocessing
+```{r}
+library(quanteda)
+library(janeaustenr)
+library(dplyr)
+library(stringr)
+overviewSuccCorpus<- corpus(overviewSucc)
+#explore the corpus
+summary(overviewSuccCorpus)  #summary of corpus
+#create document feature matrix from clean corpus + stem
+dfm.simple<- dfm(overviewSuccCorpus, 
+                 remove = stopwords("english"), 
+                 verbose=TRUE, 
+                 stem=FALSE)
+topfeatures(dfm.simple, n=50)
+# create a custom dictonary
+swlist = c("t", "s", "u","one", "two", "also", "take", "go", "like","for", 
+           "us", "can", "may", "now", "year", "tri")
+dfm<- dfm(overviewSuccCorpus, 
+          remove = c(swlist,stopwords("english")), 
+          verbose=TRUE, 
+          stem=FALSE)
+topfeatures(dfm, n=50)
+dfm.stem<- dfm(overviewSuccCorpus, 
+               remove = c(swlist,stopwords("english")), 
+               verbose=TRUE, 
+               stem=TRUE)
+#Analysis of top features
+topfeatures(dfm.stem, n=50)
+```
+
+# Analysis of Successful Movies
+
+## Sentiment Analysis on Successful Movies
+```{r}
+#Sentiment Analysis
+library(tidytext)
+library(textdata)
+library(tidyr)
+library(tidyft)
+BingSentiments= get_sentiments("nrc")
+BingSentiments
+BingNegativeSentiments<-subset(BingSentiments, BingSentiments$sentiment=="negative")
+BingPositiveSentiments<-subset(BingSentiments, BingSentiments$sentiment=="positive")
+BingNegativeSentiments
+BingPositiveSentiments
+mydict <- dictionary(list(negative=BingNegativeSentiments$word,
+                          postive =BingPositiveSentiments$word ))
+dfm.overviewSucc.sentiment <- dfm(overviewSuccCorpus, 
+                     remove = c(swlist,stopwords("english")), 
+                     verbose=TRUE, 
+                     dictionary = mydict,
+                     stem=FALSE)
+topfeatures(dfm.overviewSucc.sentiment)
+dfm.sentiment
+#Visualization
+library(wordcloud)
+set.seed(142)   #keeps cloud' shape fixed
+dark2 <- brewer.pal(8, "Set1")   
+freq<-topfeatures(dfm.stem, n=500)
+wordcloud(names(freq), 
+          freq, max.words=200, 
+          scale=c(3, .1), 
+          colors=brewer.pal(8, "Set1"))
+#Words in context
+kwic(overviewSuccCorpus, "mysterious", 2)
+kwic(overviewSuccCorpus , "death", window = 3)
+kwic(overviewSuccCorpus, "love", 4)
+kwic(overviewSuccCorpus , "young", window = 3)
+kwic(overviewSuccCorpus , "family", window = 3)
+```
+
+## Analysis successful keywords
+```{r}
+kewywordsSucc<-successfulMovies$keywords.y
+#Substituting punctiation
+kewywordsSucc <- gsub("'", "", kewywordsSucc) # remove apostrophes
+kewywordsSucc <- gsub("[[:punct:]]", " ", kewywordsSucc)  # replace punctuation with space
+kewywordsSucc <- gsub("[[:cntrl:]]", " ", kewywordsSucc)  # replace control characters with space
+kewywordsSucc <- gsub("^[[:space:]]+", "", kewywordsSucc) # remove whitespace at beginning of documents
+kewywordsSucc<- gsub("[[:space:]]+$", "", kewywordsSucc) # remove whitespace at end of documents
+kewywordsSucc<- gsub("[^a-zA-Z -]", " ", kewywordsSucc) # allows only letters
+kewywordsSucc<- tolower(kewywordsSucc)  # force to lowercase
+#Preprocessing
+library(quanteda)
+library(janeaustenr)
+library(dplyr)
+library(stringr)
+kewywordsSuccCorpus<- corpus(kewywordsSucc)
+#explore the corpus
+summary(kewywordsSuccCorpus)  #summary of corpus
+#create document feature matrix from clean corpus + stem
+dfm.simple.keywodsSucc<- dfm(kewywordsSuccCorpus, 
+                 remove = stopwords("english"), 
+                 verbose=TRUE, 
+                 stem=FALSE)
+topfeatures(dfm.simple.keywodsSucc, n=50)
+# create a custom dictonary
+swlist = c("t", "s", "u","one", "two", "also", "take", "go", "like","for", 
+           "us", "can", "may", "now", "year")
+dfmKeywordSucc<- dfm(kewywordsSuccCorpus, 
+          remove = c(swlist,stopwords("english")), 
+          verbose=TRUE, 
+          stem=FALSE)
+topfeatures(dfm, n=50)
+kwic(kewywordsSuccCorpus, "friends", 2)
+kwic(kewywordsSuccCorpus , "world", window = 3)
+kwic(kewywordsSuccCorpus, "life", 4)
+kwic(kewywordsSuccCorpus , "new", window = 3)
+kwic(kewywordsSuccCorpus , "family", window = 3)
+dfm.stem.keywordSucc<- dfm(kewywordsSuccCorpus, 
+               remove = c(swlist,stopwords("english")), 
+               verbose=TRUE, 
+               stem=TRUE)
+#Analysis of top features
+topfeatures(dfm.stem, n=50)
+#Sentiment Analysis
+library(tidytext)
+library(textdata)
+library(tidyr)
+library(tidyft)
+negative = get_sentiments("nrc") %>% 
+  filter(sentiment == "negative")
+positive = get_sentiments("nrc") %>% 
+  filter(sentiment == "positive")
+mydict <- dictionary(list(negative,positive))
+dfm.sentiment.keywordSucc <- dfm(kewywordsSuccCorpus, 
+                     remove = c(swlist,stopwords("english")), 
+                     verbose=TRUE, 
+                     dictionary = mydict,
+                     stem=FALSE)
+topfeatures(dfm.sentiment.keywordSucc)
+dfm.sentiment.keywordSucc
+#Visualization
+library(wordcloud)
+set.seed(142)   #keeps cloud' shape fixed
+dark2 <- brewer.pal(8, "Set1")   
+freq<-topfeatures(dfm.stem.keywordSucc, n=500)
+wordcloud(names(freq), 
+          freq, max.words=200, 
+          scale=c(3, .1), 
+          colors=brewer.pal(8, "Set1"))
+```
+
+## Analysis successful reviews
+```{r}
+reviewSucc<-successfulMovies$review_content
+successfulMovies$review_content
+#Substituting punctiation
+reviewSucc <- gsub("'", "", reviewSucc) # remove apostrophes
+reviewSucc <- gsub("[[:punct:]]", " ", reviewSucc)  # replace punctuation with space
+reviewSucc <- gsub("[[:cntrl:]]", " ", reviewSucc)  # replace control characters with space
+reviewSucc <- gsub("^[[:space:]]+", "", reviewSucc) # remove whitespace at beginning of documents
+reviewSucc<- gsub("[[:space:]]+$", "", reviewSucc) # remove whitespace at end of documents
+reviewSucc<- gsub("[^a-zA-Z -]", " ", reviewSucc) # allows only letters
+reviewSucc<- tolower(reviewSucc)  # force to lowercase
+#Preprocessing
+library(quanteda)
+library(janeaustenr)
+library(dplyr)
+library(stringr)
+reviewSuccCorpus<- corpus(reviewSucc)
+#explore the corpus
+summary(kewywordsSuccCorpus)  #summary of corpus
+#create document feature matrix from clean corpus + stem
+dfm.simple.reviewSucc<- dfm(reviewSuccCorpus, 
+                 remove = stopwords("english"), 
+                 verbose=TRUE, 
+                 stem=FALSE)
+topfeatures(dfm.simple.reviewSucc, n=50)
+# create a custom dictonary
+swlist = c("t", "s", "u","one", "two", "also", "take", "go","for", 
+           "us", "can", "may", "now", "year", "movie", "film" , "story")
+dfmReviewSucc<- dfm(reviewSuccCorpus, 
+          remove = c(swlist,stopwords("english")), 
+          verbose=TRUE, 
+          stem=FALSE)
+topfeatures(dfm, n=50)
+dfm.stem.reviewSucc<- dfm(reviewSuccCorpus, 
+               remove = c(swlist,stopwords("english")), 
+               verbose=TRUE, 
+               stem=TRUE)
+#Analysis of top features
+topfeatures(dfm.stem, n=50)
+#Sentiment Analysis
+library(tidytext)
+library(textdata)
+library(tidyr)
+library(tidyft)
+NrcSentiments<-get_sentiments("nrc")
+BingSentiments<-get_sentiments("bing")
+AfinnSentiments<-get_sentiments("afinn")
+table(NrcSentiments$sentiment)
+NrcNegative<-subset(NrcSentiments,NrcSentiments$sentiment=="anger" | NrcSentiments$sentiment=="disgust" | NrcSentiments$sentiment=="fear" | NrcSentiments$sentiment=="negative" | NrcSentiments$sentiment=="sadness")
+NrcPositive<-subset(NrcSentiments,NrcSentiments$sentiment=="joy" | NrcSentiments$sentiment=="positive" | NrcSentiments$sentiment=="trust" | NrcSentiments$sentiment=="surprise")
+Nrcdict <- dictionary(list(negative=NrcNegative$word,positive=NrcPositive$word))
+dfm.sentiment.reviewSucc <- dfm(reviewSuccCorpus, 
+                     remove = c(swlist,stopwords("english")), 
+                     verbose=TRUE, 
+                     dictionary = Nrcdict,
+                     stem=FALSE)
+topfeatures(dfm.sentiment.reviewSucc )
+table(BingSentiments$sentiment)
+BingPositive<-subset(BingSentiments, BingSentiments$sentiment=="positive")
+BingNegative<-subset(BingSentiments, BingSentiments$sentiment=="negative")
+Bingdict <- dictionary(list(negative=BingNegative$word,positive=BingPositive$word))
+dfm.sentiment.reviewSucc <- dfm(reviewSuccCorpus, 
+                     remove = c(swlist,stopwords("english")), 
+                     verbose=TRUE, 
+                     dictionary = Bingdict,
+                     stem=FALSE)
+topfeatures(dfm.sentiment.reviewSucc )
+AfinnPositive<-subset(AfinnSentiments,AfinnSentiments$value>0)
+AfinnNegative<-subset(AfinnSentiments,AfinnSentiments$value<0)
+Afinndict <- dictionary(list(negative=AfinnNegative$word,positive=AfinnPositive$word))
+dfm.sentiment.reviewSucc <- dfm(reviewSuccCorpus, 
+                     remove = c(swlist,stopwords("english")), 
+                     verbose=TRUE, 
+                     dictionary = Afinndict,
+                     stem=FALSE)
+topfeatures(dfm.sentiment.reviewSucc )
+dfm.sentiment.keywordSucc
+#Visualization
+library(wordcloud)
+set.seed(142)   #keeps cloud' shape fixed
+dark2 <- brewer.pal(8, "Set1")   
+freq<-topfeatures(dfm.stem.reviewSucc, n=500)
+wordcloud(names(freq), 
+          freq, max.words=200, 
+          scale=c(3, .1), 
+          colors=brewer.pal(8, "Set1"))
+```
+
+# Analysis of Unsuccessful Movies
+
+## Sentiment Analysis on Unsuccessful Movies
+```{r}
+reviewUnsucc<-unsuccessfulMovies$review_content
+reviewUnsucc
+reviewUnsucc <- gsub("'", "", reviewUnsucc) 
+reviewUnsucc <- gsub("[[:punct:]]", " ", reviewUnsucc)  
+reviewUnsucc <- gsub("[[:cntrl:]]", " ", reviewUnsucc)  # replace control characters with space
+reviewUnsucc <- gsub("^[[:space:]]+", "", reviewUnsucc) # remove whitespace at beginning of documents
+reviewUnsucc<- gsub("[[:space:]]+$", "", reviewUnsucc) # remove whitespace at end of documents
+reviewUnsucc<- gsub("[^a-zA-Z -]", " ", reviewUnsucc) # allows only letters
+reviewUnsucc<- tolower(reviewUnsucc)  # force to lowercase
+reviewUnsuccCorpus<- corpus(reviewUnsucc)
+#explore the corpus
+summary(reviewUnsuccCorpus)  #summary of corpus
+#create document feature matrix from clean corpus + stem
+dfm.simple.reviewUnsucc<- dfm(reviewUnsuccCorpus, 
+                 remove = stopwords("english"), 
+                 verbose=TRUE, 
+                 stem=FALSE)
+topfeatures(dfm.simple.reviewUnsucc, n=50)
+# create a custom dictonary
+swlist = c("t", "s", "u","one", "two", "also", "take", "go", "like","for", 
+           "us", "can", "may", "now", "year", "film", "movie", "stori", "time")
+dfmreviewUnsucc<- dfm(reviewUnsuccCorpus, 
+          remove = c(swlist,stopwords("english")), 
+          verbose=TRUE, 
+          stem=FALSE)
+topfeatures(dfm, n=50)
+dfm.stem.reviewUnsucc<- dfm(reviewUnsuccCorpus, 
+               remove = c(swlist,stopwords("english")), 
+               verbose=TRUE, 
+               stem=TRUE)
+#Analysis of top features
+topfeatures(dfm.stem.reviewUnsucc, n=50)
+dfm.sentiment.reviewUnsucc <- dfm(reviewUnsuccCorpus, 
+                     remove = c(swlist,stopwords("english")), 
+                     verbose=TRUE, 
+                     dictionary = Bingdict,
+                     stem=FALSE)
+topfeatures(dfm.sentiment.reviewUnsucc)
+dfm.sentiment.reviewUnsucc <- dfm(reviewUnsuccCorpus, 
+                     remove = c(swlist,stopwords("english")), 
+                     verbose=TRUE, 
+                     dictionary = Nrcdict,
+                     stem=FALSE)
+topfeatures(dfm.sentiment.reviewUnsucc)
+dfm.sentiment.reviewUnsucc <- dfm(reviewUnsuccCorpus, 
+                     remove = c(swlist,stopwords("english")), 
+                     verbose=TRUE, 
+                     dictionary = Afinndict,
+                     stem=FALSE)
+topfeatures(dfm.sentiment.reviewUnsucc)
+dfm.sentiment.reviewUnsucc
+set.seed(142)   #keeps cloud' shape fixed
+dark2 <- brewer.pal(8, "Set1")   
+freq<-topfeatures(dfm.stem.reviewUnsucc, n=500)
+wordcloud(names(freq), 
+          freq, max.words=200, 
+          scale=c(3, .1), 
+          colors=brewer.pal(8, "Set1"))
+```
+
+## Analysis unsuccessful overview
+```{r}
+overviewUnsucc<-unsuccessfulMovies$overview
+#Substituting punctiation
+overviewUnsucc <- gsub("'", "", overviewUnsucc) # remove apostrophes
+overviewUnsucc <- gsub("[[:punct:]]", " ", overviewUnsucc)  # replace punctuation with space
+overviewUnsucc <- gsub("[[:cntrl:]]", " ", overviewUnsucc)  # replace control characters with space
+overviewUnsucc <- gsub("^[[:space:]]+", "", overviewUnsucc) # remove whitespace at beginning of documents
+overviewUnsucc<- gsub("[[:space:]]+$", "", overviewUnsucc) # remove whitespace at end of documents
+overviewUnsucc<- gsub("[^a-zA-Z -]", " ", overviewUnsucc) # allows only letters
+overviewUnsucc<- tolower(overviewUnsucc)  # force to lowercase
+#Preprocessing
+library(quanteda)
+library(janeaustenr)
+library(dplyr)
+library(stringr)
+overviewUnsuccCorpus<- corpus(overviewUnsucc)
+#explore the corpus
+summary(overviewUnsuccCorpus)  #summary of corpus
+#create document feature matrix from clean corpus + stem
+dfm.simple.overviewUnsucc<- dfm(overviewUnsuccCorpus, 
+                 remove = stopwords("english"), 
+                 verbose=TRUE, 
+                 stem=FALSE)
+topfeatures(dfm.simple.overviewUnsucc, n=50)
+# create a custom dictonary
+swlist = c("t", "s", "u","one", "two", "also", "take", "go", "like","for", 
+           "us", "can", "may", "now", "year", "base", "young", "life")
+dfmOverviewUnsucc<- dfm(overviewUnsuccCorpus, 
+          remove = c(swlist,stopwords("english")), 
+          verbose=TRUE, 
+          stem=FALSE)
+topfeatures(dfm, n=50)
+kwic(overviewUnsuccCorpus, "friends", 2)
+kwic(overviewUnsuccCorpus , "world", window = 3)
+kwic(overviewUnsuccCorpus, "life", 4)
+kwic(overviewUnsuccCorpus , "new", window = 3)
+kwic(overviewUnsuccCorpus , "family", window = 3)
+dfm.stem.overviewUnsucc<- dfm(overviewUnsuccCorpus, 
+               remove = c(swlist,stopwords("english")), 
+               verbose=TRUE, 
+               stem=TRUE)
+#Analysis of top features
+topfeatures(dfm.stem, n=50)
+#Sentiment Analysis
+library(tidytext)
+library(textdata)
+library(tidyr)
+library(tidyft)
+negative = get_sentiments("nrc") %>% 
+  filter(sentiment == "negative")
+positive = get_sentiments("nrc") %>% 
+  filter(sentiment == "positive")
+mydict <- dictionary(list(negative,positive))
+dfm.sentiment.overviewUnsucc <- dfm(overviewUnsuccCorpus, 
+                     remove = c(swlist,stopwords("english")), 
+                     verbose=TRUE, 
+                     dictionary = mydict,
+                     stem=FALSE)
+topfeatures(dfm.sentiment.overviewUnsucc)
+dfm.sentiment.keywordSucc
+#Visualization
+library(wordcloud)
+set.seed(142)   #keeps cloud' shape fixed
+dark2 <- brewer.pal(8, "Set1")   
+freq<-topfeatures(dfm.stem.overviewUnsucc, n=500)
+wordcloud(names(freq), 
+          freq, max.words=200, 
+          scale=c(3, .1), 
+          colors=brewer.pal(8, "Set1"))
+```
+
+## Analysis unsuccessful keywords
+```{r}
+keywordUnsucc<-unsuccessfulMovies$keywords.y
+#Substituting punctiation
+keywordUnsucc <- gsub("'", "", keywordUnsucc) # remove apostrophes
+keywordUnsucc <- gsub("[[:punct:]]", " ", keywordUnsucc)  # replace punctuation with space
+keywordUnsucc <- gsub("[[:cntrl:]]", " ", keywordUnsucc)  # replace control characters with space
+keywordUnsucc <- gsub("^[[:space:]]+", "", keywordUnsucc) # remove whitespace at beginning of documents
+keywordUnsucc<- gsub("[[:space:]]+$", "", keywordUnsucc) # remove whitespace at end of documents
+keywordUnsucc<- gsub("[^a-zA-Z -]", " ", keywordUnsucc) # allows only letters
+keywordUnsucc<- tolower(keywordUnsucc)  # force to lowercase
+#Preprocessing
+library(quanteda)
+library(janeaustenr)
+library(dplyr)
+library(stringr)
+keywordUnsuccCorpus<- corpus(keywordUnsucc)
+#explore the corpus
+summary(keywordUnsuccCorpus)  #summary of corpus
+#create document feature matrix from clean corpus + stem
+dfm.simple.keywordUnsucc<- dfm(keywordUnsuccCorpus, 
+                 remove = stopwords("english"), 
+                 verbose=TRUE, 
+                 stem=FALSE)
+topfeatures(dfm.simple.keywordUnsucc, n=50)
+# create a custom dictonary
+swlist = c("t", "s", "u","one", "two", "also", "take", "go", "like","for", 
+           "us", "can", "may", "now", "year", "base", "young", "life", "relationship")
+dfmkeywordUnsucc<- dfm(keywordUnsuccCorpus, 
+          remove = c(swlist,stopwords("english")), 
+          verbose=TRUE, 
+          stem=FALSE)
+topfeatures(dfmkeywordUnsucc, n=50)
+kwic(keywordUnsuccCorpus, "based", 2)
+kwic(keywordUnsuccCorpus , "relationship", window = 3)
+kwic(keywordUnsuccCorpus, "war", 4)
+kwic(keywordUnsuccCorpus , "book", window = 3)
+kwic(keywordUnsuccCorpus , "novel", window = 3)
+kwic(keywordUnsuccCorpus , "biograpgy", window = 3)
+kwic(keywordUnsuccCorpus , "sequel", window = 3)
+dfm.stem.keywordUnsucc<- dfm(keywordUnsuccCorpus, 
+               remove = c(swlist,stopwords("english")), 
+               verbose=TRUE, 
+               stem=TRUE)
+#Analysis of top features
+topfeatures(dfm.stem.keywordUnsucc, n=50)
+#Sentiment Analysis
+library(tidytext)
+library(textdata)
+library(tidyr)
+library(tidyft)
+negative = get_sentiments("nrc") %>% 
+  filter(sentiment == "negative")
+positive = get_sentiments("nrc") %>% 
+  filter(sentiment == "positive")
+mydict <- dictionary(list(negative,positive))
+dfm.sentiment.keywordUnsucc <- dfm(keywordUnsuccCorpus, 
+                     remove = c(swlist,stopwords("english")), 
+                     verbose=TRUE, 
+                     dictionary = mydict,
+                     stem=FALSE)
+topfeatures(dfm.sentiment.keywordUnsucc)
+dfm.sentiment.keywordUnsucc
+#Visualization
+library(wordcloud)
+set.seed(142)   #keeps cloud' shape fixed
+dark2 <- brewer.pal(8, "Set1")   
+freq<-topfeatures(dfmkeywordUnsucc, n=500)
+wordcloud(names(freq), 
+          freq, max.words=200, 
+          scale=c(3, .1), 
+          colors=brewer.pal(8, "Set1"))
+```
+
+
+----
+\center THE END  \center
+---
