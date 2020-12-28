@@ -1,10 +1,10 @@
-Add the following:
+# Add the following:
 + Python Code for TMDB Data Sourcing
 + VBA Code for Concatinating Uniq function in Excel.
 
 --------------
 
-Data Scrapping from TMDB: 
+# Data Scrapping from TMDB: 
 
 
 
@@ -15,7 +15,7 @@ Data Scrapping from TMDB:
 
 
 --------------
-## Concatinating Unique Entitites in Excel seperated by Commas.
+# Concatinating Unique Entitites in Excel seperated by Commas.
 The following function helps us to concatenate only the unique values into a single cell from a list
   1. Hold down the ALT + F11 keys to open the Microsoft Visual Basic for Applications window.
   2. Click Insert > Module, and paste the [VBA code]() in the Module Window.
