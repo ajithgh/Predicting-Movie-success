@@ -15,6 +15,8 @@ A project that is intended to classify movies to be released as Blockbuster, goo
 For this project, we have used [The Movie Database](https://www.themoviedb.org/documentation/api?language=en-US) API, popularly known as TMDB Data. 
 The Data Scrapped from TMDB, then acted as our Primary Data with over 87k records just from 5 years between 2017-2021. 
 
+![](Images/DataSources.png)
+
 We then funneled the data using Heuristics and Logical approach.
 + Fileter 1: We aggregated Revenue and budget over countrires 
 ```bash
@@ -27,11 +29,13 @@ countriesRevbud <-aggregate( x = df_movies[c("revenue","budget")],
 df_movies <- subset(df_movies, (df_movies$revenue!=0 | df_movies$budget!=0))
 ```
 
+![](Images/DataFunneling.png)
+
 After Data Funneling, we were left with 6.8k records. We then augmented this Dataset using [IMDB Data](https://www.imdb.com/interfaces/) to add IMDB ratings & IMDB Vote Counts. This is an Open source data and is availabnle on IMDB. 
 
 We then merged this Data using VBA coding and Vlookup in Excel. This can also be done easily using Inner Join in R. 
 
-![](Images/DataSources.png)
+![](Images/IMDBSources.png)
 
 -----
 
