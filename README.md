@@ -31,7 +31,7 @@ df_movies <- subset(df_movies, (df_movies$revenue!=0 | df_movies$budget!=0))
 
 ![](Images/DataFunneling.png)
 
-After Data Funneling, we were left with 6.8k records. We then augmented this Dataset using [IMDB Data](https://www.imdb.com/interfaces/) to add IMDB ratings & IMDB Vote Counts. This is an Open source data and is availabnle on IMDB. 
+After Data Funneling, we were left with 6.4k records. We then augmented this Dataset using [IMDB Data](https://www.imdb.com/interfaces/) to add IMDB ratings & IMDB Vote Counts. This is an Open source data and is availabnle on IMDB. 
 
 We then merged this Data using VBA coding and Vlookup in Excel. This can also be done easily using Inner Join in R. 
 
