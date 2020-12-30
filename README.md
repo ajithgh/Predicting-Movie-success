@@ -31,6 +31,7 @@ After Data Funneling, we were left with 6.8k records. We then augmented this Dat
 
 We then merged this Data using VBA coding and Vlookup in Excel. This can also be done easily using Inner Join in R. 
 
+![img](https://drive.google.com/file/d/1qSbKbwwhHIx2mwpzfVjZhLYkyG3EXvIt/view?usp=sharing)
 
 -----
 
