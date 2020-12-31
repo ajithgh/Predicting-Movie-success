@@ -55,7 +55,7 @@ Click on the above codes to go to respective code files or use the [Master Code]
 
 ---- 
 
-## [Section 3: Conclusion](https)
+## [Section 3: Conclusion](https://github.com/ajithgh/Predicting-Movie-success/blob/main/Images/BA_Final_Project_size_reduced.pdf)
 
 In This section, you can find an idea as to how you can interpret the findings of this Project. Further, you can also subset based on genres or Top earning Genres and then find the important factor within. 
 Please see our [Presentation deck here](https://github.com/ajithgh/Predicting-Movie-success/blob/main/Images/BA_Final_Project_size_reduced.pdf)
