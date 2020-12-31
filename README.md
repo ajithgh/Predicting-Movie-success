@@ -5,7 +5,7 @@ A project that is intended to classify movies to be released as Blockbuster, goo
 
 **This Project is broken into xxx Sections.**'
 + [Section 1: Data Sourcing](https://github.com/ajithgh/Predicting-Movie-success/tree/main/Data%20Sourcing)
-+ [Section 2: Coding in R](https://github.com/ajithgh/Predicting-Movie-success/tree/main/Rcodes)
++ [Section 2: Coding in R](https://github.com/ajithgh/Predicting-Movie-success/blob/main/README.md#section-2-coding-in-r)
 + [Section 3: Summary of Recomendations & COnclusions]()
 
 -----
