@@ -4,13 +4,13 @@ A project that is intended to classify movies to be released as Blockbuster, goo
 ## Project Overview:
 
 **This Project is broken into xxx Sections.**'
-+ [Section 1: Data Sourcing]()
++ [Section 1: Data Sourcing](https://github.com/ajithgh/Predicting-Movie-success/tree/main/Data%20Sourcing)
 + [Section 2: Coding in R](https://github.com/ajithgh/Predicting-Movie-success/tree/main/Rcodes)
 + [Section 3: Summary of Recomendations & COnclusions]()
 
 -----
 
-## [Section 1: Data Sourcing]()
+## [Section 1: Data Sourcing](https://github.com/ajithgh/Predicting-Movie-success/tree/main/Data%20Sourcing)
 
 For this project, we have used [The Movie Database](https://www.themoviedb.org/documentation/api?language=en-US) API, popularly known as TMDB Data. 
 The Data Scrapped from TMDB, then acted as our Primary Data with over 87k records just from 5 years between 2017-2021. 
