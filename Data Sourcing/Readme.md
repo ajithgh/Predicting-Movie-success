@@ -1,21 +1,12 @@
-# Add the following:
-+ Python Code for TMDB Data Sourcing (@ Abhi)
-+ VBA Code for Concatinating Uniq function in Excel.
+## Data Scrapping from TMDB: 
+
+We first used the [TMDB API](https://developers.themoviedb.org/3/getting-started/introduction) and the python code in Jupyter Notebook [TMDB_API](https://github.com/ajithgh/Predicting-Movie-success/blob/main/Data%20Sourcing/TMDB_API.ipynb). This code help us Scrape data with 30 features between 2017-2021. 
+
+We then wrote another code in same format to extract the Online content providers for each of our 6.4k records from [here](https://developers.themoviedb.org/3/movies/get-movie-watch-providers)
 
 --------------
 
-# Data Scrapping from TMDB: 
-
-
-<br>
-
-
-
-
-
-
---------------
-# Concatinating Unique Entitites in Excel seperated by Commas.
+## Concatinating Unique Entitites in Excel seperated by Commas.
 The following function helps us to concatenate only the unique values into a single cell from a list
   1. Hold down the `ALT + F11` keys to open the Microsoft Visual Basic for Applications window.
   2. Click `Insert > Module`, and paste the [VBA code]() in the Module Window.
