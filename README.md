@@ -6,7 +6,7 @@ A project that is intended to classify movies to be released as Blockbuster, goo
 **This Project is broken into xxx Sections.**'
 + [Section 1: Data Sourcing](https://github.com/ajithgh/Predicting-Movie-success/tree/main/Data%20Sourcing)
 + [Section 2: Coding in R](https://github.com/ajithgh/Predicting-Movie-success/blob/main/README.md#section-2-coding-in-r)
-+ [Section 3: Summary of Recomendations & COnclusions]()
++ [Section 3: Summary of Recomendations & Conclusions]()
 
 -----
 
@@ -52,6 +52,32 @@ This section can be used on various Data Sources involving the same features. Yo
 
 
 Click on the above codes to go to respective code files or use the [Master Code](https://github.com/ajithgh/Predicting-Movie-success/blob/main/Rcodes/Master%20Code%20File.Rmd) file to get the complete codes along with Live links to data files initially used in this project. 
+
+Most of Part 1 is explained in Section 1. Apart from Data Funneling, most of Part 1 and Part 2 is understanding the Data by observation and EDA. 
+
+In Part 3, We did **Feature Engineering** & created over 25 Features such as:
+
++ Released_in_holidayMonth
++ profit_factor
++ cast_crew_ratio
++ Target
++ Converting over 10 Text Columns such as Tagline, Collection, etc into Binomial or Numerical
++ Movie directed by a high paid director?
++ most profitable production companies
++ avg. revenue of Collection
++ Competition during Release
++ most profitable genre
++ Avg revenue by crew size
++ Avg Revenue by cast Size
++ Cost per Capita
++ Avg Budget oer Genre
++ Within 1-σ Runtime
++ Within 1-σ Combined Rating
+
+Then we used MICE package for **Data Imputation**. Dumified using ``` Dummy_cols() ``` with Comma "," as seperator. 
+Later we created a model With Random Test/Train Data sets to find the Top 50 FImportant Features using RF which we then used to create an RF and GLM model. 
+We also created a model by creating a train/test set using Release year: Train: 2017-2018 & Test : 2019
+
 
 ---- 
 
