@@ -53,9 +53,9 @@ This section can be used on various Data Sources involving the same features. Yo
 
 Click on the above codes to go to respective code files or use the [Master Code](https://github.com/ajithgh/Predicting-Movie-success/blob/main/Rcodes/Master%20Code%20File.Rmd) file to get the complete codes along with Live links to data files initially used in this project. 
 
-Most of Part 1 is explained in Section 1. Apart from Data Funneling, most of Part 1 and Part 2 is understanding the Data by observation and EDA. 
+Most of Part 1 is explained in Section 1. Apart from Data Funneling, most of Part 0 and Part 1 is understanding the Data by observation and EDA. 
 
-In Part 3, We did **Feature Engineering** & created over 25 Features such as:
+In Part 2, We did **Feature Engineering** & created over 25 Features such as:
 
 + Released_in_holidayMonth
 + profit_factor
