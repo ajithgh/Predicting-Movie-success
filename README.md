@@ -1,6 +1,9 @@
 # Predicting-Movie-success
 A project that is intended to classify movies to be released as Blockbuster, good &amp; unsuccessful movies based on their profitability. 
 
+## Technology Used
+R Studio | Tableau | Excel | Python | Github
+
 ## Project Overview:
 
 **This Project is broken into xxx Sections.**'
